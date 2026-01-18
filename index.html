@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Python Coach 10 — Editor</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' ry='8' fill='%230a66ff'/%3E%3Ctext x='16' y='21' font-size='14' text-anchor='middle' fill='white' font-family='Arial'%3EAI%3C/text%3E%3C/svg%3E">
+  <style>
+    /* index.html sạch: chỉ 1 editor (editor_v2.html) */
+    body{ background:#f3f5f8; }
+    #appRoot{ display:none; }
+    .appShell{ max-width:1200px; margin:14px auto; padding:0 14px 14px; }
+    .topbar2{ position:sticky; top:0; z-index:10; background:rgba(243,245,248,.85); backdrop-filter:saturate(160%) blur(8px); border-bottom:1px solid #e6eaf0; }
+    .topbar2 .inner{ max-width:1200px; margin:0 auto; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .tb-left{ display:flex; align-items:center; gap:10px; min-width:0; }
+    .logo2{ width:38px; height:38px; border-radius:12px; background:#0a66ff; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; }
+    .tb-title{ min-width:0; }
+    .tb-title .h1{ font-weight:900; font-size:14px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tb-title .p{ font-size:12px; color:#667085; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tb-right{ display:flex; align-items:center; gap:10px; }
+    .pill2{ display:flex; align-items:center; gap:8px; padding:8px 10px; background:#fff; border:1px solid #e6eaf0; border-radius:999px; }
+    .dot2{ width:10px; height:10px; border-radius:50%; background:#22c55e; }
+    .btnLogout{ border:0; cursor:pointer; font-weight:900; font-size:12px; padding:7px 10px; border-radius:999px; background:#eef2ff; color:#344054; }
+    .btnLogout:hover{ background:#e0e7ff; }
+
+    .iframeWrap{ background:#fff; border:1px solid #e6eaf0; border-radius:14px; overflow:hidden; box-shadow:0 8px 22px rgba(16,24,40,.06); }
+    .editorFrame{ width:100%; height:calc(100vh - 86px); border:0; display:block; }
+    @media (max-width: 920px){ .editorFrame{ height:calc(100vh - 98px); } }
+  
+
+  .btnHelp{
+    border:1px solid rgba(0,0,0,.08);
+    background: #fff;
+    color:#0f172a;
+    padding:8px 12px;
+    border-radius:999px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .btnHelp:hover{ background:#f8fafc; }
+
+  .helpModal{ position:fixed; inset:0; z-index:9999; display:none; }
+  .helpModal__backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.35); }
+  .helpModal__card{
+    position:relative;
+    max-width: 640px;
+    width: calc(100% - 24px);
+    margin: 8vh auto 0;
+    background:#fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    padding: 16px;
+  }
+  .helpModal__head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .helpModal__title{ font-size:16px; font-weight:800; color:#0f172a; }
+  .helpModal__sub{ margin-top:2px; font-size:12px; color:#64748b; }
+  .helpModal__x{
+    border:0; background:transparent; font-size:18px; cursor:pointer; color:#64748b;
+    width:32px; height:32px; border-radius:10px;
+  }
+  .helpModal__x:hover{ background:#f1f5f9; color:#0f172a; }
+  .helpModal__label{ display:block; margin:12px 0 6px; font-size:12px; font-weight:700; color:#334155; }
+  .helpModal__ta{
+    width:100%;
+    border:1px solid rgba(0,0,0,.12);
+    border-radius:12px;
+    padding:10px 12px;
+    font-size:13px;
+    outline:none;
+    resize:vertical;
+  }
+  .helpModal__ta:focus{ border-color: rgba(37,99,235,.45); box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
+  .helpModal__meta{
+    margin-top:10px;
+    background:#f8fafc;
+    border:1px dashed rgba(148,163,184,.8);
+    border-radius:12px;
+    padding:10px 12px;
+    font-size:12px;
+    color:#334155;
+  }
+  .helpMeta__row{ display:flex; gap:8px; align-items:flex-start; margin:4px 0; }
+  .helpMeta__row .k{ min-width:90px; color:#64748b; }
+  .helpMeta__row .v{ flex:1; font-weight:600; color:#0f172a; white-space:pre-wrap; }
+  .helpModal__actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+  .btnGhost{
+    border:1px solid rgba(0,0,0,.12);
+    background:#fff;
+    padding:10px 12px;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:700;
+    color:#0f172a;
+  }
+  .btnGhost:hover{ background:#f8fafc; }
+  .btnPrimary{
+    border:0;
+    background:#2563eb;
+    color:#fff;
+    padding:10px 14px;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:800;
+  }
+  .btnPrimary:hover{ filter:brightness(.95); }
+  .helpModal__note{
+    margin-top:10px;
+    padding:10px 12px;
+    border-radius:12px;
+    background:#ecfeff;
+    border:1px solid rgba(14,116,144,.18);
+    color:#0f172a;
+    font-size:12px;
+    font-weight:600;
+  }
+
+
+    /* Mini homework widget (student only) */
+    .hwMini{
+      position: fixed;
+      /* Mac dinh neo theo canh phai viewport; JS se canh theo canh phai khung editor de sat hon */
+      right: 8px;
+      bottom: 16px;
+      width: 300px;
+      max-height: 42vh;
+      background: #fff;
+      border: 1px solid rgba(15,23,42,.10);
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(15,23,42,.10);
+      overflow: hidden;
+      z-index: 9999;
+      font-family: inherit;
+    }
+    .hwMiniHead{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 10px 10px;
+      background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+      border-bottom: 1px solid rgba(15,23,42,.06);
+    }
+    .hwMiniTitle{ font-weight: 900; font-size: 13px; color:#0f172a; }
+    .hwMiniToggle{
+      border:0; background: transparent; cursor:pointer;
+      width: 28px; height: 28px; border-radius: 10px;
+      font-weight: 900; color: rgba(15,23,42,.7);
+    }
+    .hwMiniToggle:hover{ background: rgba(15,23,42,.05); }
+    .hwMiniBody{ padding: 10px; overflow:auto; max-height: calc(42vh - 44px); }
+    .hwMiniItem{
+      border: 1px solid rgba(15,23,42,.08);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fbfdff;
+      margin-bottom: 8px;
+    }
+    .hwMiniItemTop{ display:flex; gap:8px; align-items:flex-start; justify-content:space-between; }
+    .hwMiniItemTitle{ font-weight: 800; font-size: 12.5px; color:#0f172a; line-height:1.2; }
+    .hwMiniMeta{ font-size: 12px; color: rgba(15,23,42,.65); margin-top:6px; }
+    .hwMiniBtns{ display:flex; gap:8px; margin-top:10px; }
+    .hwMiniBtn{
+      flex:1;
+      border:0; border-radius: 10px; padding: 8px 10px;
+      cursor:pointer; font-weight: 800; font-size: 12px;
+    }
+    .hwMiniBtnOpen{ background: rgba(59,130,246,.12); color:#1d4ed8; }
+    .hwMiniBtnDone{ background: rgba(16,185,129,.12); color:#047857; max-width:88px; }
+    .hwMiniEmpty{
+      border: 1px dashed rgba(59,130,246,.35);
+      background: rgba(59,130,246,.06);
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 12px;
+      color: rgba(15,23,42,.75);
+    }
+    @media (max-width: 980px){
+      .hwMini{ width: 280px; right: 10px; bottom: 10px; }
+    }
+
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN (Học sinh / Giáo viên) ===== -->
+<div id="loginRoot" class="loginWrap">
+  <div class="loginCard">
+    <div class="loginHead">
+      <div class="loginBrand">
+        <div class="loginLogo" id="lgLogo">HS</div>
+        <div class="loginTitle">
+          <h1 id="lgTitle">Đăng nhập học sinh</h1>
+          <p id="lgSub">Dùng <b>Mã học sinh</b> để đăng nhập • Mật khẩu mặc định: <b>123456</b></p>
+        </div>
+      </div>
+      <span class="chip">AI Python Coach 10</span>
+    </div>
+
+    <div class="loginBody">
+      <div class="chips" style="margin-top:0;">
+        <button class="btn" id="tabStudent" style="border-radius:999px; padding:8px 12px;">Học sinh</button>
+        <button class="btn" id="tabTeacher" style="border-radius:999px; padding:8px 12px;">Giáo viên</button>
+        <span class="chip" id="lgHintChip">Gợi ý: hs1, hs2, hs3…</span>
+      </div>
+
+      <div class="row">
+        <div class="label" id="lgUserLabel">Mã học sinh</div>
+        <input id="lgUser" class="input" placeholder="Ví dụ: hs12" autocomplete="username" />
+      </div>
+      <div class="row">
+        <div class="label">Mật khẩu</div>
+        <input id="lgPass" class="input" type="password" placeholder="123456" autocomplete="current-password" />
+      </div>
+
+      <div class="row" style="grid-template-columns: 1fr; margin-top:14px;">
+        <button id="lgBtn" class="btn primary">Đăng nhập</button>
+      </div>
+
+      <div id="lgErr" class="err">Sai tài khoản hoặc mật khẩu.</div>
+      <div class="hint" id="lgNote">
+        * Học sinh: đăng nhập bằng <b>Mã học sinh</b> trong danh sách.<br>
+        * Giáo viên: tài khoản mặc định <b>gv</b> • mật khẩu <b>123456</b>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP ROOT (chỉ 1 editor) ===== -->
+<div id="appRoot">
+  <div class="topbar2">
+    <div class="inner">
+      <div class="tb-left">
+        <div class="logo2">AI</div>
+        <div class="tb-title">
+          <p class="h1">AI Python Coach 10</p>
+          <p class="p" id="tbSub">Editor mới • Realtime Coach • Test PASS/FAIL</p>
+        </div>
+      </div>
+      <div class="tb-right">
+        <div class="pill2" title="Tài khoản đang đăng nhập">
+          <span class="dot2"></span>
+          <span id="userName">—</span>
+          <button class="btnHelp" id="btnHelp" style="display:none">Trợ giúp</button>
+          <button class="btnLogout" id="btnLogout">Đăng xuất</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="appShell">
+    <div class="iframeWrap">
+      <iframe class="editorFrame" id="editorFrame" src="editor_v2.html"></iframe>
+
+    <!-- MINI HOMEWORK WIDGET (student only) -->
+    <div id="hwMini" class="hwMini" style="display:none;">
+      <div class="hwMiniHead">
+        <div class="hwMiniTitle">Bài tập về nhà</div>
+        <button id="hwMiniToggle" class="hwMiniToggle" title="Thu gọn / Mở rộng">▾</button>
+      </div>
+      <div id="hwMiniBody" class="hwMiniBody">
+        <div id="hwMiniList" class="hwMiniList"></div>
+        <div id="hwMiniEmpty" class="hwMiniEmpty" style="display:none;">Không có bài tập mới.</div>
+      </div>
+    </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="./00_login.js"></script>
+<script>
+  // index.html sạch: chỉ quản lý login + hiển thị editor_v2.html
+  const loginRoot = document.getElementById('loginRoot');
+  const appRoot   = document.getElementById('appRoot');
+  const elUserName= document.getElementById('userName');
+  const elErr     = document.getElementById('lgErr');
+
+  const tabStudent = document.getElementById('tabStudent');
+  const tabTeacher = document.getElementById('tabTeacher');
+  const lgLogo = document.getElementById('lgLogo');
+  const lgTitle = document.getElementById('lgTitle');
+  const lgSub = document.getElementById('lgSub');
+  const lgHintChip = document.getElementById('lgHintChip');
+  const lgUserLabel = document.getElementById('lgUserLabel');
+  const lgUser = document.getElementById('lgUser');
+  const lgPass = document.getElementById('lgPass');
+  const lgBtn  = document.getElementById('lgBtn');
+
+  let mode = 'student';
+  function setMode(m){
+    mode = m;
+    elErr.style.display = 'none';
+    if(m==='student'){
+      lgLogo.textContent='HS';
+      lgTitle.textContent='Đăng nhập học sinh';
+      lgSub.innerHTML='Dùng <b>Mã học sinh</b> để đăng nhập • Mật khẩu mặc định: <b>123456</b>';
+      lgHintChip.textContent='Gợi ý: hs1, hs2, hs3…';
+      lgUserLabel.textContent='Mã học sinh';
+      tabStudent.classList.add('primary');
+      tabTeacher.classList.remove('primary');
+      lgUser.placeholder='Ví dụ: hs12';
+    }else{
+      lgLogo.textContent='GV';
+      lgTitle.textContent='Đăng nhập giáo viên';
+      lgSub.innerHTML='Dùng <b>Tài khoản giáo viên</b> để đăng nhập • Mật khẩu: <b>123456</b>';
+      lgHintChip.textContent='Gợi ý: gv';
+      lgUserLabel.textContent='Tài khoản giáo viên';
+      tabTeacher.classList.add('primary');
+      tabStudent.classList.remove('primary');
+      lgUser.placeholder='Ví dụ: gv';
+    }
+  }
+
+  tabStudent.addEventListener('click',()=>setMode('student'));
+  tabTeacher.addEventListener('click',()=>setMode('teacher'));
+
+  // ===== Homework mini-dock positioning =====
+  // Muc tieu: dock sat canh phai cua khung editor (iframeWrap) tren man hinh rong,
+  // thay vi neo sat canh phai viewport (gay bi "xa" khoi khung code).
+  function positionHwMini(){
+    const dock = document.getElementById('hwMini');
+    const wrap = document.querySelector('.iframeWrap');
+    if(!dock || !wrap) return;
+    // chi canh khi dang hien
+    if(getComputedStyle(dock).display === 'none') return;
+    const r = wrap.getBoundingClientRect();
+    const w = dock.getBoundingClientRect().width || 300;
+    const gap = 4; // sat nhat co the giua khung code va dock
+    const safe = 8;
+    const canDockRightOfEditor = (r.right + gap + w) <= (window.innerWidth - safe);
+    if(canDockRightOfEditor){
+      dock.style.left = (Math.round(r.right + gap)) + 'px';
+      dock.style.right = 'auto';
+    }else{
+      dock.style.left = 'auto';
+      dock.style.right = safe + 'px';
+    }
+  }
+
+  // cap nhat khi resize/scroll va khi dock doi trang thai
+  window.addEventListener('resize', positionHwMini);
+  window.addEventListener('scroll', positionHwMini, {passive:true});
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const dock = document.getElementById('hwMini');
+    if(dock){
+      const mo = new MutationObserver(()=>positionHwMini());
+      mo.observe(dock, {attributes:true, attributeFilter:['style','class']});
+    }
+    setTimeout(positionHwMini, 200);
+  });
+
+  function showApp(sess){
+    loginRoot.style.display='none';
+    appRoot.style.display='block';
+    elUserName.textContent = (sess && sess.name) ? `${sess.name} • ${sess.id}` : (sess?.id || '—');
+
+    // Hiện nút Trợ giúp CHỈ khi đã đăng nhập học sinh
+    const btnHelp = document.getElementById('btnHelp');
+    if(btnHelp){ btnHelp.style.display = (sess && sess.role === 'student') ? 'inline-flex' : 'none'; }
+
+    // cache-bust iframe on fresh login to ensure latest JS
+    const f = document.getElementById('editorFrame');
+    const base = (sess && sess.role === 'teacher') ? 'teacher_dashboard.html' : 'editor_v2.html';
+    const u = new URL(base, location.href);
+    u.searchParams.set('v', Date.now().toString());
+    f.setAttribute('src', base);
+    f.src = u.pathname + '?' + u.searchParams.toString();
+
+    // Homework mini-dock: chi hien cho hoc sinh va canh sat khung code
+    const dock = document.getElementById('hwMini');
+    if(dock){
+      dock.style.display = (sess && sess.role === 'student') ? 'block' : 'none';
+      // doi 1 nhip de layout on dinh roi moi canh
+      setTimeout(positionHwMini, 120);
+      setTimeout(positionHwMini, 500);
+    }
+  }
+
+  function doLogin(){
+    const id = (lgUser.value||'').trim();
+    const pw = (lgPass.value||'').trim();
+    if(!id || !pw){ elErr.style.display='block'; return; }
+    if(pw !== DEFAULT_PW){ elErr.style.display='block'; return; }
+
+    if(mode==='student'){
+      const s = findStudent(id);
+      if(!s){ elErr.style.display='block'; return; }
+      setSession({ role:'student', id:s.id, name:s.name, class:s.class, ts:Date.now() });
+      showApp(getSession());
+      return;
+    }
+
+    const t = findTeacher(id);
+    if(!t){ elErr.style.display='block'; return; }
+    setSession({ role:'teacher', id:t.id, name:t.name||t.id, ts:Date.now() });
+    showApp(getSession());
+  }
+
+  lgBtn.addEventListener('click', doLogin);
+  lgPass.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
+  lgUser.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
+
+  document.getElementById('btnLogout').addEventListener('click', ()=>{
+    try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+    location.reload();
+  });
+
+  // ===== Help / Ticket (HS -> GV) =====
+  const btnHelp = document.getElementById('btnHelp');
+  const helpModal = document.getElementById('helpModal');
+  const helpDesc = document.getElementById('helpDesc');
+  const helpCancel = document.getElementById('helpCancel');
+  const helpSend = document.getElementById('helpSend');
+  const helpNote = document.getElementById('helpNote');
+  const helpMetaLesson = document.getElementById('helpMetaLesson');
+  const helpMetaErr = document.getElementById('helpMetaErr');
+  const helpModalClose = document.getElementById('helpModalClose');
+  const helpModalX = document.getElementById('helpModalX');
+
+  const HELP_KEY = 'py10:helpTickets';
+  function loadTickets(){
+    try{ return JSON.parse(localStorage.getItem(HELP_KEY) || '[]') || []; }catch(e){ return []; }
+  }
+  function saveTickets(arr){
+    try{ localStorage.setItem(HELP_KEY, JSON.stringify(arr||[])); }catch(e){}
+  }
+
+  function openHelp(){
+    if(!helpModal) return;
+    helpNote.style.display='none';
+    helpDesc.value='';
+    helpMetaLesson.textContent='(đang lấy...)';
+    helpMetaErr.textContent='(đang lấy...)';
+    helpModal.style.display='block';
+    // cố gắng lấy snapshot từ editor iframe
+    waitSnapshot(2500).then(snap=>{
+      if(!snap){
+        helpMetaLesson.textContent='—';
+        helpMetaErr.textContent='—';
+        return;
+      }
+      helpMetaLesson.textContent = snap.lessonTitle || snap.lessonId || '—';
+      helpMetaErr.textContent = snap.error || '—';
+    });
+    setTimeout(()=>{ try{ helpDesc.focus(); }catch(e){} }, 50);
+  }
+
+  function closeHelp(){
+    if(!helpModal) return;
+    helpModal.style.display='none';
+  }
+
+  function waitSnapshot(timeoutMs){
+    return new Promise((resolve)=>{
+      const start = Date.now();
+      const f = document.getElementById('editorFrame');
+      const tick = ()=>{
+        try{
+          const w = f && f.contentWindow;
+          if(w && typeof w.__py10GetSnapshot === 'function'){
+            return resolve(w.__py10GetSnapshot());
+          }
+        }catch(e){}
+        if(Date.now() - start >= (timeoutMs||2000)) return resolve(null);
+        setTimeout(tick, 120);
+      };
+      tick();
+    });
+  }
+
+  async function sendHelp(){
+    const sess = getSession();
+    if(!sess || sess.role !== 'student') return;
+    const desc = (helpDesc.value||'').trim();
+    if(!desc){
+      helpNote.textContent='⚠️ Bạn hãy mô tả ngắn vấn đề (1–2 câu) để giáo viên dễ hỗ trợ.';
+      helpNote.style.display='block';
+      return;
+    }
+    const snap = await waitSnapshot(2500);
+    const ticket = {
+      id: 'T' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+      createdAt: new Date().toISOString(),
+      studentId: sess.id,
+      studentName: sess.name || sess.id,
+      class: sess.class || '',
+      lessonId: snap?.lessonId || '',
+      lessonTitle: snap?.lessonTitle || '',
+      message: desc,
+      code: snap?.code || '',
+      error: snap?.error || '',
+      output: snap?.output || '',
+      reply: ''
+    };
+    const arr = loadTickets();
+    arr.unshift(ticket);
+    saveTickets(arr);
+    helpNote.textContent='✅ Đã gửi trợ giúp! Giáo viên sẽ thấy trong mục “Trợ giúp” ở giao diện giáo viên.';
+    helpNote.style.display='block';
+    // auto close after a moment
+    setTimeout(closeHelp, 900);
+  }
+
+  if(btnHelp){ btnHelp.addEventListener('click', openHelp); }
+  if(helpCancel){ helpCancel.addEventListener('click', closeHelp); }
+  if(helpModalClose){ helpModalClose.addEventListener('click', closeHelp); }
+  if(helpModalX){ helpModalX.addEventListener('click', closeHelp); }
+  if(helpSend){ helpSend.addEventListener('click', sendHelp); }
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape' && helpModal && helpModal.style.display==='block') closeHelp();
+  });
+
+  // boot
+  setMode('student');
+  const sess = getSession();
+  if(sess){ showApp(sess); }
+</script>
+
+  <!-- Help / Ticket modal -->
+  <div class="helpModal" id="helpModal" style="display:none">
+    <div class="helpModal__backdrop" id="helpModalClose"></div>
+    <div class="helpModal__card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="helpModal__head">
+        <div>
+          <div class="helpModal__title" id="helpTitle">Trợ giúp giáo viên</div>
+          <div class="helpModal__sub">Gửi mô tả ngắn + hệ thống tự kèm bài đang làm, code và lỗi gần nhất.</div>
+        </div>
+        <button class="helpModal__x" id="helpModalX" aria-label="Đóng">✕</button>
+      </div>
+
+      <label class="helpModal__label" for="helpDesc">Mô tả ngắn vấn đề bạn đang gặp</label>
+      <textarea id="helpDesc" class="helpModal__ta" rows="4" placeholder="Ví dụ: Em bấm Test thì báo lỗi... / Em không hiểu vì sao PASS-FAIL..."></textarea>
+
+      <div class="helpModal__meta" id="helpMeta">
+        <div class="helpMeta__row"><span class="k">Bài:</span> <span class="v" id="helpMetaLesson">—</span></div>
+        <div class="helpMeta__row"><span class="k">Lỗi gần nhất:</span> <span class="v" id="helpMetaErr">—</span></div>
+      </div>
+
+      <div class="helpModal__actions">
+        <button class="btnGhost" id="helpCancel">Hủy</button>
+        <button class="btnPrimary" id="helpSend">Gửi</button>
+      </div>
+
+      <div class="helpModal__note" id="helpNote" style="display:none"></div>
+    </div>
+  </div>
+
+</body>
+</html>

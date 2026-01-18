@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Python Editor + Realtime Coach + Test</title>
+
+  <style>
+    :root{
+      --bg:#f3f5f8; --card:#fff; --border:#e6eaf0; --muted:#667085; --text:#101828;
+      --out-bg:#0b1220; --out-text:#e6f2ff; --out-muted:#9bb4d0; --danger:#ff4d4f; --ok:#2ecc71;
+      --btn:#1677ff; --btn-hover:#0f63d6; --btn2:#e9f2ff; --btn2-text:#0b5ed7;
+      --coach-accent:#0b5ed7; --coach-soft:#eef6ff;
+      --stmt-bg:#ffffff;
+      --stmt-border:#dbeafe;
+      --stmt-title:#0b5ed7;
+    }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); }
+    .page{ max-width:1200px; margin:18px auto; padding:0 14px 18px; display:flex; flex-direction:column; gap:14px; }
+    .editor-card{ background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 8px 22px rgba(16,24,40,.06); }
+
+    .editor-toolbar{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 12px; border-bottom:1px solid var(--border); background:#fff; gap:12px; flex-wrap:wrap;
+    }
+    .toolbar-left{ display:flex; align-items:center; gap:10px; min-width:240px; flex:1 1 320px; }
+    .dot{ width:10px;height:10px;border-radius:50%; background:#d0d5dd; }
+    .title{ font-weight:900; font-size:14px; }
+    .sub{ font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:520px; }
+    .toolbar-mid{ display:flex; align-items:center; gap:10px; flex:1 1 360px; min-width:280px; }
+    select{ width:100%; max-width:520px; padding:9px 10px; border-radius:10px; border:1px solid var(--border); background:#fff; font-size:13px; outline:none; }
+    .toolbar-right{ display:flex; align-items:center; gap:10px; }
+
+    .btn{ border:0; background:var(--btn); color:#fff; padding:9px 14px; border-radius:10px; cursor:pointer; font-weight:900; font-size:13px; }
+    .btn:hover{ background:var(--btn-hover); }
+    .btn2{ border:1px solid #cfe3ff; background:var(--btn2); color:var(--btn2-text); padding:9px 14px; border-radius:10px; cursor:pointer; font-weight:900; font-size:13px; }
+
+    .status{ font-size:12px; color:var(--muted); white-space:nowrap; }
+    .pill{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:900; background:#eef2ff; color:#344054; border:1px solid var(--border); }
+    .pill.ok{ background:#e9fff0; color:#0a7a2a; border-color:#bff0cd; }
+    .pill.bad{ background:#ffecec; color:#b00020; border-color:#ffb7b7; }
+
+    /* Đề bài */
+    .statementbar{ padding:12px 12px; border-bottom:1px solid var(--border); background:#fff; }
+    .statementbox{ background:var(--stmt-bg); border:2px solid var(--stmt-border); border-radius:14px; padding:14px 14px; }
+    .statementtitle{ font-weight:1000; font-size:18px; color:var(--stmt-title); margin:0 0 8px 0; line-height:1.2; }
+    .statementtext{ margin:0; font-size:16px; line-height:1.55; white-space:pre-wrap; color:#123b63; }
+
+    /* Coach */
+    .coachbar{ padding:10px 12px; border-bottom:1px solid var(--border); background:#fff; display:flex; gap:10px; align-items:flex-start; }
+    .coach-left{ flex:1 1 auto; min-width:280px; }
+    .coach-title{ font-size:12px; font-weight:900; color:var(--coach-accent); margin-bottom:6px; }
+    .coach-next{ font-size:12px; line-height:1.35; background:var(--coach-soft); border:1px solid #d9ebff; padding:8px 10px; border-radius:10px; white-space:pre-wrap; color:#123b63; }
+    .coach-right{ flex:0 0 360px; max-width:420px; background:#fff; border:1px solid var(--border); border-radius:12px; padding:8px 10px; }
+    .checklist{ margin:0; padding-left:18px; font-size:12px; color:#123b63; line-height:1.55; }
+    .checklist .ok{ color:#0a7a2a; font-weight:900; } .checklist .no{ color:#b00020; font-weight:900; }
+    @media (max-width: 920px){ .coachbar{ flex-direction:column; } .coach-right{ width:100%; max-width:none; } }
+
+    /* Monaco */
+    .code-wrap{ height:430px; position:relative; background:#fff; }
+    @media (max-width: 920px){ .code-wrap{ height:360px; } }
+    #editor{ height:100%; border-top:1px solid var(--border); }
+
+    /* Output panels */
+    .bottom{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media (max-width: 920px){ .bottom{ grid-template-columns:1fr; } select{ max-width:none; } }
+    .panel{ background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 8px 22px rgba(16,24,40,.06); min-height:220px; }
+    .panel-head{ padding:10px 12px; border-bottom:1px solid var(--border); background:#fff; }
+    .panel-title{ font-weight:900; font-size:14px; margin:0; }
+    .panel-sub{ margin-top:2px; font-size:12px; color:var(--muted); white-space:pre-wrap; line-height:1.35; }
+    .stdin{ width:100%; height:170px; border:0; outline:none; resize:none; padding:12px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace; font-size:14px; line-height:1.5; background:#fff; }
+    .out{ width:100%; height:170px; padding:12px; background:var(--out-bg); color:var(--out-text);
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace; font-size:13px; line-height:1.55; overflow:auto; white-space:pre-wrap; }
+    .out .x{ color:var(--danger); font-weight:900; } .out .muted{ color:var(--out-muted); }
+    .out .ok{ color:var(--ok); font-weight:900; } .out .hint{ color:#b7d7ff; font-weight:900; }
+  </style>
+</head>
+
+<body>
+<div class="page">
+
+  <div class="editor-card">
+    <div class="editor-toolbar">
+      <div class="toolbar-left">
+        <div class="dot"></div>
+        <div style="min-width:0">
+          <div class="title">Python</div>
+          <div class="sub" id="subtitle">Viết code ở đây • Realtime Coach • Test PASS/FAIL</div>
+        </div>
+      </div>
+
+      <div class="toolbar-mid">
+        <select id="problemSelect"></select>
+        <span class="pill" id="pill">Chưa chạy</span>
+        <span class="status" id="scoreMeta">Test: 0/0</span>
+      </div>
+
+      <div class="toolbar-right">
+        <div class="status" id="status">Đang tải Python...</div>
+        <button class="btn2" id="loadBtn" disabled>Nạp khung</button>
+        <button class="btn2" id="hintBtn" disabled>Gợi ý</button>
+        <button class="btn" id="runBtn" disabled>Test</button>
+      </div>
+    </div>
+
+    <div class="statementbar">
+      <div class="statementbox">
+        <div class="statementtitle" id="statementTitle">Đề bài</div>
+        <pre class="statementtext" id="statementText">(Đang tải đề...)</pre>
+      </div>
+    </div>
+
+    <div class="coachbar">
+      <div class="coach-left">
+        <div class="coach-title">🧠 Realtime Coach (gợi ý theo dòng đang gõ)</div>
+        <div class="coach-next" id="coachNext">(Bắt đầu gõ code để nhận gợi ý tức thì)</div>
+      </div>
+      <div class="coach-right">
+        <div class="coach-title" style="margin-bottom:6px;">Checklist</div>
+        <ul class="checklist" id="coachChecklist"></ul>
+      </div>
+    </div>
+
+    <div class="code-wrap">
+      <div id="editor"></div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="panel">
+      <div class="panel-head">
+        <p class="panel-title">Input (stdin)</p>
+        <div class="panel-sub">Nhập dữ liệu đầu vào để chạy thử. (Test dùng test case riêng)</div>
+      </div>
+      <textarea class="stdin" id="stdin" spellcheck="false"></textarea>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <p class="panel-title">Output / Lỗi / PASS-FAIL</p>
+        <div class="panel-sub">Lỗi tiếng Việt + nguyên nhân + cách sửa theo “đúng bệnh”.</div>
+      </div>
+      <div class="out" id="out"><span class="muted">Chưa chạy.</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+<script>
+  // Session-aware keys (đồng bộ theo học sinh/giáo viên đang đăng nhập ở trang cha)
+  const SESSION_KEY = "py10:session";
+  function getSession(){
+    try{ return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }catch(_){ return null; }
+  }
+  const _sess = getSession();
+  const _scope = _sess && _sess.id ? String(_sess.id).trim() : "guest";
+
+  // =======================
+  // PROBLEMS
+  // =======================
+  const PROBLEMS = [
+    {
+      id:"b1",
+      title:"Bài 1: Chẵn hay lẻ (n tự nhiên)",
+      statement:"Nhập một số tự nhiên n, in ra thông báo n là số chẵn hay số lẻ.",
+      starter:`n = int(input("Nhập n: "))\n\n# TODO: In ra thông báo n là số chẵn hay số lẻ\n`,
+      sampleInput:"7",
+      hints:{
+        level1:["Bạn cần kết luận 1 trong 2 trường hợp: chẵn hoặc lẻ."],
+        level2:["Nhập n → kiểm tra n chia 2 dư hay không → in kết luận."],
+        level3:["Bạn cần if/else. Chẵn/lẻ thường kiểm tra bằng % 2."],
+        level4:["Pseudo: nếu n % 2 == 0 → chẵn, ngược lại → lẻ."],
+        level5:["Nếu lỗi: kiểm tra dấu ':' và thụt lề sau if/else."]
+      },
+      tests:{
+        public:[{input:"2\n",expected:"chan"},{input:"7\n",expected:"le"}],
+        hidden:[{input:"0\n",expected:"chan"},{input:"999\n",expected:"le"}]
+      },
+      checker:(out,expected)=>{
+        const o=simplifyText(out);
+        if(expected==="chan") return o.includes("chan") || o.includes("so chan") || o.includes("chẵn");
+        if(expected==="le") return o.includes("le") || o.includes("so le") || o.includes("lẻ");
+        return false;
+      }
+    },
+    {
+      id:"b2",
+      title:"Bài 2: a chia hết b (b ≠ 0)",
+      statement:"Nhập hai số nguyên a và b (b khác 0). In ra thông báo a có chia hết cho b hay không.",
+      starter:`a = int(input("Nhập a: "))\nb = int(input("Nhập b (khác 0): "))\n\n# TODO: In ra a có chia hết cho b hay không\n`,
+      sampleInput:"10\n2",
+      hints:{
+        level1:["Bạn cần kiểm tra chia hết giữa a và b."],
+        level2:["Nhập a,b → kiểm tra a chia b dư 0 hay không → in kết luận."],
+        level3:["Dùng if/else và phép chia lấy dư a % b."],
+        level4:["Pseudo: nếu a%b==0 → chia hết, else → không chia hết."],
+        level5:["Nếu lỗi chia cho 0: kiểm tra b có bằng 0 không."]
+      },
+      tests:{
+        public:[{input:"10\n2\n",expected:"chia het"},{input:"10\n3\n",expected:"khong chia het"}],
+        hidden:[{input:"-12\n3\n",expected:"chia het"},{input:"5\n-2\n",expected:"khong chia het"}]
+      },
+      checker: (out, expected) => {
+        const o = simplifyText(out);
+        const reChiaHet = /(^|[^a-z0-9])chia\s*het([^a-z0-9]|$)/;
+        const reKhongChiaHet = /(^|[^a-z0-9])khong\s+chia\s*het([^a-z0-9]|$)/;
+        if (expected === "chia het") return reChiaHet.test(o) && !reKhongChiaHet.test(o);
+        if (expected === "khong chia het") return reKhongChiaHet.test(o);
+        return false;
+      }
+    },
+    {
+      id:"b3",
+      title:"Bài 3: Tính tiền điện theo mức (không luỹ tiến)",
+      statement:`Nhập số điện tiêu thụ (kWh).\nTính tiền:\n- ≤50: 1678 đ/kWh\n- 51–100: 1734 đ/kWh\n- >100: 2014 đ/kWh\n(đơn giá theo mức, không luỹ tiến)`,
+      starter:`kwh = float(input("Nhập kWh: "))\n\n# TODO: Tính tiền điện và in ra (đơn vị đồng)\n`,
+      sampleInput:"60",
+      hints:{
+        level1:["Chia 3 trường hợp theo kWh."],
+        level2:["Nhập kWh → xác định khoảng → nhân đơn giá → in tiền."],
+        level3:["Dùng if/elif/else với biên 50 và 100."],
+        level4:["Pseudo: kwh<=50 →*1678; elif<=100 →*1734; else →*2014"],
+        level5:["Nếu sai: kiểm tra biên và đúng đơn giá."]
+      },
+      tests:{
+        public:[{input:"50\n",expected:83900},{input:"60\n",expected:104040}],
+        hidden:[{input:"100\n",expected:173400},{input:"120\n",expected:241680}]
+      },
+      checker:(out,expected)=>{
+        const got=extractFirstNumber(out);
+        return got!==null && Math.abs(got-expected)<0.6;
+      }
+    },
+    {
+      id:"b4",
+      title:"Bài 4: In các số từ 1 đến n",
+      statement:"Nhập n. In ra các số từ 1 đến n (cách nhau bằng khoảng trắng hoặc xuống dòng).",
+      starter:`n = int(input("Nhập n: "))\n\n# TODO: In các số từ 1 đến n\n`,
+      sampleInput:"5",
+      hints:{
+        level1:["Cần in dãy 1..n."],
+        level2:["Nhập n → lặp i=1..n → in i."],
+        level3:["Dùng for/while. Nhớ bao gồm n."],
+        level4:["Pseudo: for i=1..n: print(i)"],
+        level5:["Nếu thiếu số: kiểm tra phạm vi vòng lặp."]
+      },
+      tests:{
+        public:[{input:"1\n",expectedTokens:["1"]},{input:"5\n",expectedTokens:["1","2","3","4","5"]}],
+        hidden:[{input:"3\n",expectedTokens:["1","2","3"]},{input:"10\n",expectedTokens:["1","2","3","4","5","6","7","8","9","10"]}]
+      },
+      checker:(out,expected,input,t)=>{
+        const tokens=tokenize(out);
+        const want=t.expectedTokens;
+        if(tokens.length!==want.length) return false;
+        for(let i=0;i<want.length;i++) if(tokens[i]!==want[i]) return false;
+        return true;
+      }
+    },
+    {
+      id:"b5",
+      title:"Bài 5: Tổng các số chẵn từ 1 đến n",
+      statement:"Nhập n. Tính tổng các số chẵn từ 1 đến n và in ra kết quả.",
+      starter:`n = int(input("Nhập n: "))\n\n# TODO: Tính tổng các số chẵn từ 1 đến n và in ra\n`,
+      sampleInput:"10",
+      hints:{
+        level1:["Cộng các số chẵn trong đoạn 1..n."],
+        level2:["Nhập n → lặp 1..n → nếu chẵn thì cộng → in tổng."],
+        level3:["Vòng lặp + lọc chẵn (%2). Nhớ tổng=0."],
+        level4:["Pseudo: sum=0; for i=1..n: if i chẵn → sum+=i; print(sum)"],
+        level5:["Nếu sai: kiểm tra điều kiện chẵn và phạm vi."]
+      },
+      tests:{
+        public:[{input:"1\n",expected:0},{input:"10\n",expected:30}],
+        hidden:[{input:"2\n",expected:2},{input:"100\n",expected:2550}]
+      },
+      checker:(out,expected)=>{
+        const got=extractFirstNumber(out);
+        return got!==null && Math.abs(got-expected)<0.01;
+      }
+    }
+  ];
+
+  // =======================
+  // Progress lock (scope theo user)
+  // =======================
+  const PROGRESS_KEY = `py10:${_scope}:progress_pass_v1`;
+  function loadProgress(){
+    try{
+      const v = JSON.parse(localStorage.getItem(PROGRESS_KEY) || "null");
+      return v && typeof v === "object" ? v : { passed:{} };
+    }catch(_){ return { passed:{} }; }
+  }
+  function saveProgress(p){ try{ localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }catch(_){}}
+  
+
+  // =======================
+  // Đồng bộ KẾT QUẢ cho Giáo viên (shared keys)
+  // Giáo viên đọc: py10:progress:<hsid> và py10:log:<hsid>
+  // =======================
+  const T_PROG_KEY = `py10:progress:${_scope}`;
+  const T_LOG_KEY  = `py10:log:${_scope}`;
+  function tLoadJSON(key, fallback){
+    try{ const v = JSON.parse(localStorage.getItem(key) || 'null'); return (v && typeof v==='object') ? v : fallback; }
+    catch(_){ return fallback; }
+  }
+  function tSaveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(_){} }
+  function tLoadProg(){
+    const p = tLoadJSON(T_PROG_KEY, {passed:{}, lastSavedAt:null});
+    if(!p.passed || typeof p.passed!=='object') p.passed = {};
+    return p;
+  }
+  function tLoadLog(){
+    const l = tLoadJSON(T_LOG_KEY, {events:[]});
+    if(!Array.isArray(l.events)) l.events = [];
+    return l;
+  }
+  function tPushEvent(ev){
+    const l = tLoadLog();
+    l.events.push(ev);
+    if(l.events.length > 300) l.events = l.events.slice(-300);
+    tSaveJSON(T_LOG_KEY, l);
+  }
+  function syncTeacherResult({ok, lessonId, err, act='test'}){
+    const now = new Date().toISOString();
+    const prog = tLoadProg();
+    if(ok) prog.passed[String(lessonId)] = true;
+    prog.lastSavedAt = now;
+    tSaveJSON(T_PROG_KEY, prog);
+    tPushEvent({at: now, act, ok: !!ok, lessonId: String(lessonId), err: err ? String(err) : ''});
+  }
+function indexOfProblem(id){ return PROBLEMS.findIndex(p=>p.id===id); }
+  function isUnlockedByIndex(idx, progress){
+    if(idx <= 0) return true;
+    const prevId = PROBLEMS[idx-1].id;
+    return !!(progress && progress.passed && progress.passed[prevId]);
+  }
+  function isUnlockedById(id, progress){ return isUnlockedByIndex(indexOfProblem(id), progress); }
+
+  // =======================
+  // Auto-save theo từng bài (scope theo user)
+  // =======================
+  const CODE_KEY_PREFIX = `py10:${_scope}:code_v1_`;
+  function loadSavedCode(problemId){
+    try{
+      const v = localStorage.getItem(CODE_KEY_PREFIX + problemId);
+      return (v === null) ? null : v;
+    }catch(_){ return null; }
+  }
+  function saveCode(problemId, code){ try{ localStorage.setItem(CODE_KEY_PREFIX + problemId, code ?? ""); }catch(_){}}
+  let saveTimer = null;
+  function scheduleSave(){
+    if(saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(()=>{ saveCode(state.currentId, getCode()); }, 250);
+  }
+
+  // =======================
+  // UI + State
+  // =======================
+  const elStdin = document.getElementById("stdin");
+  const elOut = document.getElementById("out");
+  const elRun = document.getElementById("runBtn");
+  const elHint = document.getElementById("hintBtn");
+  const elLoad = document.getElementById("loadBtn");
+  const elStatus = document.getElementById("status");
+  const elSelect = document.getElementById("problemSelect");
+  const elPill = document.getElementById("pill");
+  const elScoreMeta = document.getElementById("scoreMeta");
+  const elSubtitle = document.getElementById("subtitle");
+  const elCoachNext = document.getElementById("coachNext");
+  const elCoachChecklist = document.getElementById("coachChecklist");
+  const elStatementTitle = document.getElementById("statementTitle");
+  const elStatementText = document.getElementById("statementText");
+
+  let pyodide = null;
+  const state = {
+    currentId: PROBLEMS[0].id,
+    hintClicks: 0,
+    maxHint: 5,
+    runCount: 0,
+    lastRunHadError: false,
+    lastRunPassed: false,
+    lastErrText: "",
+    failStreak: 0,
+    liveTimer: null,
+    lastSelectableId: PROBLEMS[0].id,
+  };
+
+  // =======================
+  // Helpers
+  // =======================
+  function escapeHTML(s){ return (s??"").toString().replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+  function setOutHTML(html){ elOut.innerHTML = html; }
+  function setPill(text, kind){ elPill.textContent=text; elPill.className="pill"+(kind?(" "+kind):""); }
+  function currentProblem(){ return PROBLEMS.find(p=>p.id===state.currentId); }
+
+  function normalizeOutput(out){
+    out=(out??"").replace(/\r\n/g,"\n");
+    out=out.split("\n").map(l=>l.trimEnd()).join("\n");
+    out=out.replace(/\n+$/g,"\n");
+    return out;
+  }
+  function simplifyText(s){
+    s=(s??"").toString().toLowerCase().trim();
+    s=s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    s=s.replace(/\s+/g," ");
+    return s;
+  }
+  function tokenize(out){
+    const s=normalizeOutput(out).trim();
+    if(!s) return [];
+    return s.split(/\s+/).filter(Boolean);
+  }
+  function extractFirstNumber(s){
+    const m=(s??"").toString().match(/-?\d+(\.\d+)?/);
+    return m?Number(m[0]):null;
+  }
+
+  // =======================
+  // Monaco setup
+  // =======================
+  let editor = null;
+  function getCode(){ return editor ? editor.getValue() : ""; }
+  function setCode(v){ if(editor) editor.setValue(v ?? ""); }
+  function getCursorOffset(){
+    if(!editor) return 0;
+    const pos = editor.getPosition();
+    return editor.getModel().getOffsetAt(pos);
+  }
+
+  const AC_WORDS = [
+    { label:"print()", insertText:"print()", detail:"In kết quả" },
+    { label:"input()", insertText:"input()", detail:"Nhập dữ liệu" },
+    { label:"int()", insertText:"int()", detail:"Ép kiểu int" },
+    { label:"float()", insertText:"float()", detail:"Ép kiểu float" },
+    { label:"if :", insertText:"if  :\n    ", detail:"Rẽ nhánh" },
+    { label:"elif :", insertText:"elif  :\n    ", detail:"Nhánh phụ" },
+    { label:"else:", insertText:"else:\n    ", detail:"Nhánh còn lại" },
+    { label:"for i in range()", insertText:"for i in range():\n    ", detail:"Vòng lặp for" },
+    { label:"while :", insertText:"while  :\n    ", detail:"Vòng lặp while" },
+    { label:"range()", insertText:"range()", detail:"Tạo dãy" },
+  ];
+
+  // =======================
+  // Coach logic (giữ nguyên)
+  // =======================
+  function getCurrentLine(code, cursorPos){
+    const left = code.slice(0, cursorPos);
+    const lines = left.split("\n");
+    return { line: lines.length, text: lines[lines.length-1] };
+  }
+
+  function hasDanglingBlock(code){
+    const lines=(code||"").replace(/\r\n/g,"\n").split("\n");
+    for(let i=0;i<lines.length;i++){
+      const line=lines[i];
+      const t=line.trim();
+      if(!t || t.startsWith("#")) continue;
+      const isBlock=/^(if|elif|else|for|while|def|try|except|finally|with)\b/.test(t) && t.endsWith(":");
+      if(!isBlock) continue;
+
+      let j=i+1;
+      while(j<lines.length && lines[j].trim()==="") j++;
+      if(j>=lines.length) return {ok:false,line:i+1,reason:"khối lệnh bị thiếu nội dung (thiếu thân khối)"};
+
+      const next=lines[j];
+      const indentNow=line.match(/^\s*/)[0].length;
+      const indentNext=next.match(/^\s*/)[0].length;
+      if(indentNext<=indentNow) return {ok:false,line:i+1,reason:"thiếu thụt lề (thiếu body sau dấu ':')"};
+    }
+    return {ok:true};
+  }
+
+  function liveCoachHint(code, cursorPos, stdinSample){
+    const { line, text } = getCurrentLine(code, cursorPos);
+    const t = text.trim();
+    const linesAll = code.split("\n");
+    const nextLine = (linesAll[line] || "").trim();
+
+    if (t === "else:" || t === "else") {
+      return { level: "CẢNH BÁO", message: `⚠️ Dòng ${line}: nhánh else chưa có nội dung.\n👉 Sau "else:" bạn phải viết lệnh và THỤT LỀ (4 dấu cách).` };
+    }
+    if (/^\s*else\s*:\s*$/.test(text) && nextLine && !/^\s+/.test(linesAll[line] || "")) {
+      return { level:"CẢNH BÁO", message:`⚠️ Dòng ${line}: sau else: dòng dưới chưa thụt lề.\n👉 Hãy thụt vào 4 dấu cách và viết lệnh.` };
+    }
+    if (t.startsWith("if ") && !t.endsWith(":")) {
+      return { level: "NHẮC NHẸ", message: `⚠️ Dòng ${line}: câu lệnh if đang thiếu dấu ":" ở cuối.\n👉 Ví dụ: if ... :` };
+    }
+    if ((t.startsWith("for ") || t.startsWith("while ") || t.startsWith("elif ")) && !t.endsWith(":")) {
+      return { level:"NHẮC NHẸ", message:`⚠️ Dòng ${line}: dòng này đang thiếu dấu ":" ở cuối.\n👉 Nhớ thêm ":" rồi mới viết phần thụt lề.` };
+    }
+    if (/int\s*\(\s*input\s*\(/.test(code)) {
+      const sample = (stdinSample || "").trim().split("\n")[0] || "";
+      if (sample && isNaN(Number(sample))) {
+        return { level: "CẢNH BÁO", message: `❌ Bạn đang dùng int(input()) nhưng dữ liệu mẫu KHÔNG phải số.\n👉 Cách sửa:\n- Nhập số (ví dụ 10)\n- Hoặc bỏ int() nếu bạn cần nhập chữ` };
+      }
+    }
+
+    const dangling = hasDanglingBlock(code);
+    if (!dangling.ok) {
+      return { level:"CẢNH BÁO", message:`⚠️ Bạn đang thiếu thân khối sau dấu ':' (khoảng dòng ${dangling.line}).\n👉 Cách sửa: thêm 1 dòng thụt lề bên dưới (4 dấu cách) và viết lệnh.` };
+    }
+    return null;
+  }
+
+  function analyzeProgress(problem, code){
+    const c=code||"";
+    const hasInput=/\binput\s*\(/.test(c);
+    const hasPrint=/\bprint\s*\(/.test(c);
+    const hasIf=/\bif\b/.test(c);
+    const hasLoop=/\bfor\b|\bwhile\b/.test(c);
+    const hasCast=/\bint\s*\(|\bfloat\s*\(|%|\/\/|\brange\s*\(/.test(c);
+    const dangling=hasDanglingBlock(c);
+
+    const checks=[
+      {key:"input", label:"Đã đọc input", ok:hasInput},
+      {key:"parse", label:"Đã ép kiểu/xử lý dữ liệu", ok:hasCast},
+      {key:"structure", label:"Đã dùng if/for/while", ok:(hasIf||hasLoop)},
+      {key:"print", label:"Đã in kết quả", ok:hasPrint},
+    ];
+
+    if(problem.id==="b1"){
+      checks.push({key:"mod2", label:"Có kiểm tra % 2", ok:/%\s*2/.test(c)});
+      const elseLine = c.split("\n").findIndex(l=>/^\s*else\s*:\s*$/.test(l));
+      let elseHasBody = true;
+      if (elseLine >= 0){
+        const lines=c.split("\n");
+        let j=elseLine+1;
+        while(j<lines.length && lines[j].trim()==="") j++;
+        elseHasBody = j<lines.length && /^\s+/.test(lines[j]);
+      }
+      checks.push({key:"elseBody", label:"else có nội dung (thụt lề)", ok: elseLine<0 ? false : elseHasBody});
+    }
+
+    if(problem.id==="b2") checks.push({key:"mod", label:"Có dùng % để kiểm tra chia hết", ok:/%/.test(c)});
+    if(problem.id==="b3") checks.push({key:"branch", label:"Có đủ if/elif/else", ok:(/\bif\b/.test(c)&&/\belif\b/.test(c)&&/\belse\b/.test(c))});
+    if(problem.id==="b4") checks.push({key:"loop", label:"Có vòng lặp", ok:hasLoop});
+    if(problem.id==="b5"){
+      checks.push({key:"even", label:"Lọc chẵn bằng %2", ok:/%\s*2/.test(c)});
+      checks.push({key:"loop2", label:"Có vòng lặp cộng dồn", ok:hasLoop});
+    }
+
+    let next="";
+    if(!dangling.ok){
+      next=`⚠️ Ưu tiên sửa cấu trúc: thiếu thân khối sau ':' (dòng ${dangling.line}).\n👉 Sau dòng có ':' phải có dòng thụt lề bên dưới.`;
+      return {checks,next};
+    }
+
+    const live = liveCoachHint(c, getCursorOffset(), elStdin.value);
+    if(live) return {checks, next:`🧠 ${live.level}\n${live.message}`};
+
+    const firstNo = checks.find(x=>!x.ok);
+    const map={
+      input:"Bước tiếp theo: đọc input đúng số lượng dữ liệu (input()).",
+      parse:"Bước tiếp theo: ép kiểu (int/float) hoặc xử lý dữ liệu.",
+      structure:"Bước tiếp theo: chọn cấu trúc if/for/while phù hợp.",
+      print:"Bước tiếp theo: in kết quả cuối cùng (print).",
+      mod2:"Bước tiếp theo: dùng %2 để xét chẵn/lẻ.",
+      elseBody:"Bước tiếp theo: viết nội dung cho nhánh else (thụt lề).",
+      mod:"Bước tiếp theo: kiểm tra chia hết bằng a % b.",
+      branch:"Bước tiếp theo: chia 3 trường hợp bằng if/elif/else.",
+      loop:"Bước tiếp theo: thêm vòng lặp để in 1..n.",
+      even:"Bước tiếp theo: lọc số chẵn bằng %2.",
+      loop2:"Bước tiếp theo: thêm vòng lặp để cộng dồn."
+    };
+    next = firstNo ? (map[firstNo.key] || "Bước tiếp theo: làm theo từng bước của đề.")
+                   : (state.lastRunPassed ? "✅ Đủ bước cơ bản. Nếu FAIL: kiểm tra điều kiện biên + chữ output."
+                                         : "✅ Đủ bước cơ bản. Hãy bấm Test để kiểm tra test case.");
+    return {checks,next};
+  }
+
+  function updateCoach(){
+    const p=currentProblem();
+    const {checks,next}=analyzeProgress(p, getCode());
+    elCoachChecklist.innerHTML = checks.map(c => `<li>${c.ok?`<span class="ok">✅</span>`:`<span class="no">⬜</span>`} ${escapeHTML(c.label)}</li>`).join("");
+    elCoachNext.textContent = next;
+  }
+
+  function debounceCoach(ms=200){
+    if(state.liveTimer) clearTimeout(state.liveTimer);
+    state.liveTimer=setTimeout(updateCoach, ms);
+  }
+
+  // =======================
+  // Error tiếng Việt
+  // =======================
+  function classifyPythonError(stderr){
+    const s = (stderr||"").toString();
+    if (s.includes("SyntaxError")) return "SyntaxError";
+    if (s.includes("IndentationError")) return "IndentationError";
+    if (s.includes("ValueError")) return "ValueError";
+    if (s.includes("EOFError")) return "EOFError";
+    return "Other";
+  }
+  function extractLineNoFromTrace(stderr){
+    const s=(stderr||"").toString().split("\n");
+    for(const ln of s){
+      const m=ln.match(/line\s+(\d+)/);
+      if(m) return parseInt(m[1],10);
+    }
+    return null;
+  }
+  function extractErrTypeMsg(stderr){
+    const lines=(stderr||"").toString().split("\n").map(x=>x.trim()).filter(Boolean);
+    for(let i=lines.length-1;i>=0;i--){
+      const m=lines[i].match(/^([A-Za-z_]+Error|Exception):\s*(.*)$/);
+      if(m) return {type:m[1], msg:m[2]||""};
+    }
+    return {type:"Error", msg:(lines[lines.length-1]||"")};
+  }
+  function viExplainByDisease(stderr, code){
+    const type = classifyPythonError(stderr);
+    const lineNo = extractLineNoFromTrace(stderr);
+    const { msg } = extractErrTypeMsg(stderr);
+
+    const codeLines = (code||"").split("\n");
+    let around = "";
+    if (lineNo != null){
+      const start = Math.max(1, lineNo-1);
+      const end = Math.min(codeLines.length, lineNo+1);
+      const arr=[];
+      for(let i=start;i<=end;i++){
+        arr.push(`${i===lineNo?"👉":"  "} ${i} | ${codeLines[i-1]??""}`);
+      }
+      around = "\n📌 Code quanh dòng lỗi:\n" + arr.join("\n");
+    }
+
+    const m = (msg||"").toLowerCase();
+
+    if (type === "SyntaxError"){
+      let reason = "Bạn viết sai cú pháp Python.";
+      let fix = "- Kiểm tra dấu ':' sau if/elif/else/for/while\n- Kiểm tra cặp ngoặc ()\n- Kiểm tra dấu nháy ' \" có đủ cặp";
+      if (m.includes("expected ':'")) { reason="Thiếu dấu ':' ở cuối dòng điều khiển (if/for/while/elif/else)."; fix="- Thêm ':' ở cuối dòng đó\n- Dòng sau phải thụt lề"; }
+      if (m.includes("eol while scanning string literal") || m.includes("unterminated string")) { reason="Thiếu dấu nháy đóng chuỗi (\" hoặc ')."; fix="- Kiểm tra chuỗi bạn đang viết\n- Đảm bảo có đủ cặp dấu nháy"; }
+      if (m.includes("was never closed") || m.includes("unexpected eof")) { reason="Thiếu dấu ')' hoặc ']' hoặc '}'."; fix="- Kiểm tra ngoặc mở/đóng\n- Đếm số ngoặc () [] {}"; }
+      return `❌ LỖI CÚ PHÁP (SyntaxError)\n📍 Vị trí: dòng ${lineNo ?? "?"}\n💬 Vì sao lỗi: ${reason}\n✅ Cách sửa:\n${fix}${around}\n\n📌 Chi tiết lỗi:\n${stderr}`;
+    }
+
+    if (type === "IndentationError"){
+      return `❌ LỖI THỤT LỀ (IndentationError)\n📍 Vị trí: dòng ${lineNo ?? "?"}\n💬 Vì sao lỗi: Sau dòng có ':' bạn chưa thụt lề/thiếu thân khối.\n✅ Cách sửa:\n- Sau if/else/for/while...: phải có dòng THỤT VÀO 4 dấu cách\n- Không trộn TAB và SPACE\n${around}\n\n📌 Chi tiết lỗi:\n${stderr}`;
+    }
+
+    if (type === "ValueError"){
+      return `❌ LỖI ÉP KIỂU (ValueError)\n📍 Vị trí: dòng ${lineNo ?? "?"}\n💬 Vì sao lỗi: Bạn dùng int()/float() với dữ liệu không phải số.\n✅ Cách sửa:\n- Nhập đúng số (ví dụ 10)\n- Hoặc bỏ int()/float() nếu cần nhập chữ\n${around}\n\n📌 Chi tiết lỗi:\n${stderr}`;
+    }
+
+    if (type === "EOFError"){
+      return `❌ LỖI THIẾU INPUT (EOFError)\n📍 Vị trí: dòng ${lineNo ?? "?"}\n💬 Vì sao lỗi: Chương trình cần nhiều input hơn số dòng bạn nhập.\n✅ Cách sửa:\n- Nhập đủ số dòng input theo đề\n- Ví dụ bài 2 cần 2 dòng: a và b\n${around}\n\n📌 Chi tiết lỗi:\n${stderr}`;
+    }
+
+    return `❌ LỖI KHÁC\n📍 Vị trí: dòng ${lineNo ?? "?"}\n✅ Cách xử lý:\n- Đọc dòng báo lỗi cuối cùng và sửa đúng chỗ trước\n${around}\n\n📌 Chi tiết lỗi:\n${stderr}`;
+  }
+
+  // =======================
+  // Runner
+  // =======================
+  function pyTripleQuoteSafe(s){
+    return (s ?? "").replaceAll("\\", "\\\\").replaceAll('"""', '\\"""');
+  }
+
+  async function runPythonWithInput(code, inputStr){
+    if(!pyodide) throw new Error("Pyodide chưa sẵn sàng");
+
+    const indented = (code||"").split("\n").map(l=>"    "+l).join("\n");
+    const py = `\nimport sys, io, traceback, builtins\n__in = """${pyTripleQuoteSafe(inputStr)}"""\nsys.stdin = io.StringIO(__in)\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()\n\ndef _silent_input(prompt=None):\n    return sys.stdin.readline().rstrip("\\n")\nbuiltins.input = _silent_input\n\ntry:\n${indented}\nexcept Exception:\n    traceback.print_exc()\n\n__out = sys.stdout.getvalue()\n__err = sys.stderr.getvalue()\n`;
+    await pyodide.runPythonAsync(py);
+    return {
+      out: pyodide.globals.get("__out") || "",
+      err: pyodide.globals.get("__err") || ""
+    };
+  }
+
+  async function gradeProblem(problem, code){
+    const allTests = [
+      ...(problem.tests.public||[]).map(t=>({...t,__public:true})),
+      ...(problem.tests.hidden||[]).map(t=>({...t,__public:false}))
+    ];
+    let passCount=0;
+    for(let i=0;i<allTests.length;i++){
+      const t=allTests[i];
+      const {out,err}=await runPythonWithInput(code,t.input);
+      if(err && err.trim()){
+        return { pass:false, runtimeError:true, passCount, total:allTests.length, failedAt:i+1, out, err, test:t };
+      }
+      let ok=false;
+      ok = problem.checker ? problem.checker(out,t.expected,t.input,t) : (tokenize(out).join(" ")===tokenize(String(t.expected)).join(" "));
+      if(!ok){
+        return { pass:false, runtimeError:false, passCount, total:allTests.length, failedAt:i+1, out, err:"", test:t };
+      }
+      passCount++;
+    }
+    return { pass:true, runtimeError:false, passCount:allTests.length, total:allTests.length, failedAt:null };
+  }
+
+  // =======================
+  // Hint engine
+  // =======================
+  function chooseHintLevel(problem){
+    const code = getCode().trim();
+    const nonEmpty = code ? code.split("\n").filter(l=>l.trim()).length : 0;
+    const dangling = hasDanglingBlock(code);
+    if(!dangling.ok) return 5;
+    if(state.lastRunHadError) return 5;
+    if(!code || nonEmpty<2 || code.length<25) return 1;
+    if(state.runCount===0) return 2;
+    if(!state.lastRunPassed) return (state.failStreak>=2 ? 4 : 3);
+    return 1;
+  }
+  function pickHint(problem, level){
+    const arr = (problem.hints && problem.hints["level"+level]) ? problem.hints["level"+level] : [];
+    return arr.length ? arr[Math.floor(Math.random()*arr.length)] : "Chưa có gợi ý cho mức này.";
+  }
+
+  // =======================
+  // Render + events
+  // =======================
+  function initSelect(){
+    const progress = loadProgress();
+    elSelect.innerHTML = PROBLEMS.map((p, idx)=>{
+      const unlocked = isUnlockedByIndex(idx, progress);
+      const passed = !!(progress.passed && progress.passed[p.id]);
+      const label = `${p.title}${passed ? " ✅" : (unlocked ? "" : " 🔒")}`;
+      return `<option value="${p.id}" ${unlocked ? "" : "disabled"}>${escapeHTML(label)}</option>`;
+    }).join("");
+    elSelect.value = state.currentId;
+  }
+
+  function renderProblem(p){
+    elSubtitle.textContent = p.statement;
+    elStatementTitle.textContent = p.title;
+    elStatementText.textContent = p.statement;
+
+    const saved = loadSavedCode(p.id);
+    setCode((saved !== null && saved.trim() !== "") ? saved : p.starter);
+
+    elStdin.value = p.sampleInput||"";
+    state.hintClicks=0; state.lastRunHadError=false; state.lastRunPassed=false; state.lastErrText=""; state.failStreak=0; state.runCount=0;
+
+    setPill("Chưa chạy","");
+    setOutHTML(`<span class="muted">Chưa chạy.</span>`);
+
+    const total=(p.tests.public.length+p.tests.hidden.length);
+    elScoreMeta.textContent=`Test: 0/${total}`;
+
+    updateCoach();
+  }
+
+  elSelect.addEventListener("change",()=>{
+    const desiredId = elSelect.value;
+    const progress = loadProgress();
+
+    if(!isUnlockedById(desiredId, progress)){
+      elSelect.value = state.lastSelectableId;
+      setOutHTML(
+        `<span class="x">🔒 Bài này đang bị khóa.</span>\n`+
+        `<span class="hint">Bạn cần PASS bài trước rồi mới mở bài tiếp theo.</span>`
+      );
+      return;
+    }
+
+    state.currentId = desiredId;
+    state.lastSelectableId = desiredId;
+    renderProblem(currentProblem());
+  });
+
+  elLoad.addEventListener("click",()=>{
+    const p=currentProblem();
+    setCode(p.starter);
+    setOutHTML(`<span class="hint">💡 Đã nạp khung code.</span>`);
+    debounceCoach(0);
+  });
+
+  elHint.addEventListener("click",()=>{
+    const p=currentProblem();
+    if(state.hintClicks>=state.maxHint){
+      setOutHTML(`<span class="hint">💡 Bạn đã dùng hết gợi ý.</span>\n<span class="muted">Hãy xem checklist và sửa từng bước.</span>`);
+      return;
+    }
+    state.hintClicks++;
+    const level=chooseHintLevel(p);
+
+    const live = liveCoachHint(getCode(), getCursorOffset(), elStdin.value);
+    if(live){
+      setOutHTML(`<span class="hint">💡 Gợi ý tức thì</span>\n\n${escapeHTML(live.message)}`);
+      return;
+    }
+
+    const hint = pickHint(p, level);
+    setOutHTML(`<span class="hint">💡 Gợi ý Level ${level}</span>\n\n${escapeHTML(hint)}`);
+  });
+
+  elRun.addEventListener("click", async ()=>{
+    const p=currentProblem();
+    const code=getCode();
+    const stdin=elStdin.value;
+
+    setPill("Đang test...","");
+    setOutHTML(`<span class="muted">Đang chạy thử + test...</span>`);
+    elRun.disabled=true;
+
+    try{
+      state.runCount++;
+
+      const trial = await runPythonWithInput(code, stdin);
+      if(trial.err && trial.err.trim()){
+        state.lastRunHadError=true; state.lastRunPassed=false; state.lastErrText=trial.err; state.failStreak++;
+        setPill("Lỗi khi chạy","bad");
+        const explained = viExplainByDisease(trial.err, code);
+        setOutHTML(`<span class="x">${escapeHTML(explained)}</span>`);
+        // Đồng bộ lỗi chạy lên bảng Kết quả của GV
+        syncTeacherResult({ lessonId: state.currentId, ok: false, err: trial.err, act: "test" });
+        updateCoach();
+        return;
+      }
+
+      state.lastRunHadError=false; state.lastErrText="";
+
+      const grade = await gradeProblem(p, code);
+      elScoreMeta.textContent = `Test: ${grade.passCount}/${grade.total}`;
+
+      const trialOut = normalizeOutput(trial.out);
+
+      if(grade.pass){
+        state.lastRunPassed=true; state.failStreak=0;
+        setPill("PASS ✅","ok");
+        setOutHTML(`<span class="ok">✅ PASS</span>  <span class="muted">(Đúng theo test case)</span>\n\n${escapeHTML(trialOut || "(Không có output)")}`);
+
+        const prog = loadProgress();
+        prog.passed = prog.passed || {};
+        prog.passed[p.id] = true;
+        saveProgress(prog);
+        // Đồng bộ PASS lên bảng Kết quả của GV
+        syncTeacherResult({ lessonId: p.id, ok: true, err: "", act: "test" });
+        state.lastErrText = "";
+
+        initSelect();
+        state.lastSelectableId = state.currentId;
+
+        // PASS xong tự nhảy bài tiếp theo
+        const idx = indexOfProblem(state.currentId);
+        const next = PROBLEMS[idx + 1];
+        if(next){
+          state.currentId = next.id;
+          state.lastSelectableId = next.id;
+          elSelect.value = next.id;
+          renderProblem(currentProblem());
+        }
+
+      } else {
+        state.lastRunPassed=false; state.failStreak++;
+        setPill("FAIL ❌","bad");
+
+        const dangling = hasDanglingBlock(code);
+        let reason = "";
+        if(!dangling.ok){
+          reason = `Bạn đang thiếu thân khối sau ':' (dòng ${dangling.line}). Hãy thụt lề và viết lệnh trong nhánh đó.`;
+        } else {
+          if(p.id==="b1" && !/%\s*2/.test(code)) reason="Gợi ý: chẵn/lẻ thường dùng % 2 để kiểm tra.";
+          else if(p.id==="b1" && !/\belse\b/.test(code)) reason="Gợi ý: bài chẵn/lẻ thường cần if/else để có 2 trường hợp.";
+          else reason="Gợi ý: kiểm tra điều kiện biên, cấu trúc if/loop và chữ bạn in ra.";
+        }
+
+        setOutHTML(
+          `<span class="x">❌ FAIL</span> <span class="muted">(Trượt ở test #${grade.failedAt})</span>\n`+
+          `<span class="hint">💡 Gợi ý sửa nhẹ:</span> ${escapeHTML(reason)}\n\n`+
+          `${escapeHTML(trialOut || "(Không có output)")}`
+        );
+        state.lastErrText = `FAIL test #${grade.failedAt}. ${reason}`;
+        // Đồng bộ FAIL lên bảng Kết quả của GV
+        syncTeacherResult({ lessonId: p.id, ok: false, err: state.lastErrText, act: "test" });
+      }
+
+      updateCoach();
+
+    } catch(e){
+      setPill("Lỗi hệ thống","bad");
+      setOutHTML(`<span class="x">❌ Lỗi hệ thống:</span>\n${escapeHTML(e?.message || String(e))}`);
+      updateCoach();
+    } finally {
+      elRun.disabled=false;
+    }
+  });
+
+  // =======================
+  // Boot
+  // =======================
+  function bootUI(){
+    initSelect();
+
+    const progress = loadProgress();
+    if(!isUnlockedById(state.currentId, progress)) state.currentId = PROBLEMS[0].id;
+    state.lastSelectableId = state.currentId;
+    elSelect.value = state.currentId;
+
+    renderProblem(currentProblem());
+  }
+
+  function enableUIReady(){
+    elStatus.textContent="Sẵn sàng";
+    setPill("Chưa chạy","");
+    elRun.disabled=false;
+    elHint.disabled=false;
+    elLoad.disabled=false;
+    updateCoach();
+  }
+
+  require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs" } });
+
+  require(["vs/editor/editor.main"], async function () {
+    editor = monaco.editor.create(document.getElementById("editor"), {
+      value: PROBLEMS[0].starter,
+      language: "python",
+      theme: "vs",
+      automaticLayout: true,
+      minimap: { enabled: false },
+      fontSize: 14,
+      lineHeight: 21,
+      fontFamily: 'ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace',
+      scrollBeyondLastLine: false,
+      wordWrap: "off",
+      tabSize: 4,
+      insertSpaces: true,
+    });
+
+    monaco.languages.registerCompletionItemProvider("python", {
+      provideCompletionItems: function(model, position) {
+        const suggestions = AC_WORDS.map(w => ({
+          label: w.label,
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: w.insertText,
+          detail: w.detail,
+          range: undefined
+        }));
+        return { suggestions };
+      }
+    });
+
+    editor.onDidChangeModelContent(() => {
+      scheduleSave();
+      debounceCoach(120);
+    });
+
+    editor.onDidChangeCursorPosition(() => {
+      debounceCoach(0);
+    });
+
+    
+  // Expose snapshot for outer shell (help tickets)
+  window.__py10GetSnapshot = function(){
+    try{
+      const p = (typeof currentProblem === "function") ? currentProblem() : null;
+      return {
+        lessonId: (state && state.currentId) ? state.currentId : "",
+        lessonTitle: p && p.title ? p.title : "",
+        code: (typeof getCode === "function") ? getCode() : "",
+        lastError: (state && state.lastErrText) ? state.lastErrText : "",
+        lastStatus: (state && state.lastStatusText) ? state.lastStatusText : "",
+        lastOutput: (typeof getOutputText === "function") ? getOutputText() : "",
+      };
+    } catch(e){
+      return { lessonId:"", lessonTitle:"", code:"", lastError:String(e||""), lastStatus:"", lastOutput:"" };
+    }
+  };
+
+  function getOutputText(){
+    try{
+      const el = document.getElementById("outBox");
+      if(!el) return "";
+      return (el.innerText || "").trim();
+    }catch(e){ return ""; }
+  }
+
+bootUI();
+
+    elStatus.textContent="Đang tải Python...";
+    setPill("Đang tải...","");
+    pyodide = await loadPyodide();
+    enableUIReady();
+  });
+</script>
+
+</body>
+</html>

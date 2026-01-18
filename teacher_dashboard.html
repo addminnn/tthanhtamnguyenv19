@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Python Coach 10 — Giáo viên</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <!--
+    LƯU Ý:
+    - Trang này được nạp trong iframe của index.html.
+    - Logout / thông tin người dùng dùng thanh trên cùng của index.html.
+    - Không đặt thêm topbar ở đây để tránh "đè bản cũ"/trùng giao diện.
+  -->
+  <div id="teacherRoot">
+    <div class="tShell">
+      <aside class="tSide">
+        <button class="tNav active" data-view="overview">Tổng quan</button>
+        <button class="tNav" data-view="roster">Lớp & học sinh</button>
+        <button class="tNav" data-view="assign">Giao bài</button>
+        <button class="tNav" data-view="bank">Ngân hàng câu hỏi</button>
+        <button class="tNav" data-view="results">Kết quả</button>
+        <button class="tNav" data-view="help">Trợ giúp (ticket)</button>
+        <div class="hr" style="margin:12px 0;"></div>
+        <div class="muted" style="font-size:12px; line-height:1.4;">
+          Dữ liệu lưu LocalStorage (không cần server).<br>
+          GitHub Pages chạy ổn định.
+        </div>
+      </aside>
+
+      <main class="tMain">
+        <div class="tView" id="tView_overview"></div>
+        <div class="tView" id="tView_roster" style="display:none;"></div>
+        <div class="tView" id="tView_assign" style="display:none;"></div>
+        <div class="tView" id="tView_bank" style="display:none;"></div>
+        <div class="tView" id="tView_results" style="display:none;"></div>
+        <div class="tView" id="tView_help" style="display:none;"></div>
+      </main>
+    </div>
+
+    <div id="tModalBackdrop" class="tModalBackdrop" style="display:none;"></div>
+    <div id="tModal" class="tModal" style="display:none;"></div>
+  </div>
+
+  <script src="./02_teacher.js"></script>
+  <script src="./03_patches.js"></script>
+</body>
+</html>
